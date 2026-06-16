@@ -302,17 +302,130 @@ a { color: inherit; }
   aspect-ratio: 1 / 1;
   overflow: hidden;
   background: var(--ivory-deep);
+  cursor: zoom-in;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
 }
 
 .card-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform .5s ease;
 }
 
 .card:hover .card-image img {
-  transform: scale(1.14);
+  transform: scale(1.08);
+}
+
+/* ---------- Product lightbox / modal ---------- */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: rgba(28, 20, 16, 0.82);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .3s ease, visibility .3s ease;
+}
+
+.lightbox.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.lightbox-inner {
+  position: relative;
+  max-width: 1100px;
+  width: 100%;
+  transform: scale(0.94);
+  transition: transform .3s ease;
+}
+
+.lightbox.open .lightbox-inner {
+  transform: scale(1);
+}
+
+.lightbox-figure {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+}
+
+.lightbox-figure img {
+  display: block;
+  width: 100%;
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: 14px;
+  background: var(--ivory);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+}
+
+/* Price hovers over the image, bottom-centre */
+.lightbox-price {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.lightbox-price .price-tag {
+  font-size: 1.15rem;
+  padding: 11px 26px 11px 20px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+.lightbox-caption {
+  margin: 16px 0 0;
+  text-align: center;
+  font-family: 'Mukta', sans-serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--ivory);
+}
+
+/* Cross / close button */
+.lightbox-close {
+  position: absolute;
+  top: -18px;
+  right: -18px;
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ivory);
+  color: var(--maroon);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+  transition: transform .25s ease, background .25s ease;
+}
+
+.lightbox-close:hover {
+  transform: rotate(90deg) scale(1.08);
+  background: var(--marigold);
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .lightbox { padding: 16px; }
+  .lightbox-close { top: -14px; right: -6px; width: 40px; height: 40px; font-size: 1.4rem; }
+  .lightbox-figure img { max-height: 68vh; }
 }
 
 .card-body {
@@ -564,7 +677,7 @@ footer a { color: var(--marigold-light); text-decoration: none; }
     <div class="grid">
           <article class="card">
             <div class="card-image">
-              <img src="IC - VC 03 - Rs. 1882.jpeg" alt="VC - 03" loading="lazy" width="640" height="640">
+              <img src="IC - VC 03 - Rs. 1882.jpeg" alt="VC 03" loading="lazy" width="640" height="640">
             </div>
             <div class="card-body">
               <h3 class="card-title">VC - 03</h3>
@@ -573,11 +686,11 @@ footer a { color: var(--marigold-light); text-decoration: none; }
           </article>
           <article class="card">
             <div class="card-image">
-              <img src="https://placehold.co/640x640/16585A/FBF3E7?font=poppins&text=Toran+02" alt="Peacock Feather Toran" loading="lazy" width="640" height="640">
+              <img src="IC - VC 04 - Rs. 710.jpeg" alt="VC 04" loading="lazy" width="640" height="640">
             </div>
             <div class="card-body">
-              <h3 class="card-title">Peacock Feather Toran</h3>
-              <p class="card-price"><span class="price-tag">&#8377;599</span></p>
+              <h3 class="card-title">VC 04</h3>
+              <p class="card-price"><span class="price-tag">&#8377;710</span></p>
             </div>
           </article>
           <article class="card">
@@ -972,6 +1085,18 @@ footer a { color: var(--marigold-light); text-decoration: none; }
     </div>
   </section>
 
+  <!-- Product lightbox -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Product preview">
+    <div class="lightbox-inner">
+      <button class="lightbox-close" id="lightboxClose" aria-label="Close preview">&times;</button>
+      <figure class="lightbox-figure">
+        <img id="lightboxImg" src="" alt="">
+        <div class="lightbox-price"><span class="price-tag" id="lightboxPrice"></span></div>
+      </figure>
+      <p class="lightbox-caption" id="lightboxCaption"></p>
+    </div>
+  </div>
+
 </main>
 
 <footer>
@@ -1024,6 +1149,46 @@ footer a { color: var(--marigold-light); text-decoration: none; }
     });
   }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
   sections.forEach(function (s) { observer.observe(s); });
+
+  /* ---------- Product lightbox ---------- */
+  var lightbox = document.getElementById('lightbox');
+  var lbImg = document.getElementById('lightboxImg');
+  var lbPrice = document.getElementById('lightboxPrice');
+  var lbCaption = document.getElementById('lightboxCaption');
+  var lbClose = document.getElementById('lightboxClose');
+
+  function openLightbox(card) {
+    var img = card.querySelector('.card-image img');
+    var title = card.querySelector('.card-title');
+    var price = card.querySelector('.price-tag');
+    if (!img) return;
+    lbImg.src = img.currentSrc || img.src;
+    lbImg.alt = img.alt || '';
+    lbCaption.textContent = title ? title.textContent : '';
+    lbPrice.innerHTML = price ? price.innerHTML : '';
+    lightbox.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.card').forEach(function (card) {
+    var imageBox = card.querySelector('.card-image');
+    if (imageBox) {
+      imageBox.addEventListener('click', function () { openLightbox(card); });
+    }
+  });
+
+  lbClose.addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', function (e) {
+    if (e.target === lightbox) { closeLightbox(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && lightbox.classList.contains('open')) { closeLightbox(); }
+  });
 </script>
 
 </body>
